@@ -1,5 +1,5 @@
 from __future__ import division
-from math import log,sqrt
+import math as mt
 import operator
 from nltk.stem import *
 from nltk.stem.porter import *
