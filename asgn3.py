@@ -27,6 +27,9 @@ def tw_stemmer(word):
   else:
     return STEMMER.stem(word)
 
+def TF_IDF():
+    pass
+
 def PMI(c_xy, c_x, c_y, N):
   '''Compute the pointwise mutual information using cooccurrence counts.
 
@@ -124,7 +127,11 @@ def create_ppmi_vectors(wids, o_counts, co_counts, tot_count):
         for y in co_counts[wid0]:
             cxy = co_counts[wid0][y]
             cy = o_counts[y]
-            vectors[wid0][y] = PMI(cxy,cx,cy,N)
+            val = PMI(cxy,cx,cy,N)
+            if val<0:
+                vectors[wid0][y] = 0
+            else:
+                vectors[wid0][y] = val
             
     return vectors
 
