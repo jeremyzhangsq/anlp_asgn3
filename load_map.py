@@ -7,7 +7,7 @@ Attribution-NonCommercial 4.0 International License
 redistribute, or modify this work for non-commercial purposes provided
 you retain attribution to any previous author(s).
 '''
-fp = open("/afs/inf.ed.ac.uk/group/teaching/anlp/lab8/wid_word");
+fp = open("/afs/inf.ed.ac.uk/group/teaching/anlp/lab8/wid_word")
 wid2word={}
 word2wid={}
 for line in fp:

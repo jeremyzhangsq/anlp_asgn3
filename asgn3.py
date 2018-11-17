@@ -21,7 +21,7 @@ def tw_stemmer(word):
   :return: the stemmed word
 
   '''
-  if word[0] == '@': #don't stem these
+  if word[0] == '@' or word[0] == '#': # don't stem these
     return word
   else:
     return STEMMER.stem(word)
@@ -43,14 +43,16 @@ def PMI(c_xy, c_x, c_y, N):
   '''
   return 0 # you need to fix this
 
-#Do a simple error check using value computed by hand
-if(PMI(2,4,3,12) != 1): # these numbers are from our y,z example
+# Do a simple error check using value computed by hand
+if(PMI(2,4,3,12) != 1):
+    # these numbers are from our y,z example
     print("Warning: PMI is incorrectly defined")
 else:
     print("PMI check passed")
 
 def cos_sim(v0,v1):
-  '''Compute the cosine similarity between two sparse vectors.
+  '''
+  Compute the cosine similarity between two sparse vectors.
 
   :type v0: dict
   :type v1: dict
@@ -84,7 +86,7 @@ def create_ppmi_vectors(wids, o_counts, co_counts, tot_count):
     '''
     vectors = {}
     for wid0 in wids:
-        ##you will need to change this
+        ## you will need to change this
         vectors[wid0] = {}
     print("Warning: create_ppmi_vectors is incorrectly defined")
     return vectors
@@ -142,7 +144,7 @@ def freq_v_sim(sims):
     c1 = o_counts[pair[0][1]]
     xs.append(min(c0,c1))
   plt.clf() # clear previous plots (if any)
-  plt.xscale('log') #set x axis to log scale. Must do *before* creating plot
+  plt.xscale('log') # set x axis to log scale. Must do *before* creating plot
   plt.plot(xs, ys, 'k.') # create the scatter plot
   plt.xlabel('Min Freq')
   plt.ylabel('Similarity')
@@ -150,7 +152,8 @@ def freq_v_sim(sims):
 #  plt.show() #display the set of plots
 
 def make_pairs(items):
-  '''Takes a list of items and creates a list of the unique pairs
+  '''
+  Takes a list of items and creates a list of the unique pairs
   with each pair sorted, so that if (a, b) is a pair, (b, a) is not
   also included. Self-pairs (a, a) are also not included.
 
@@ -164,17 +167,17 @@ def make_pairs(items):
 
 test_words = ["cat", "dog", "mouse", "computer","@justinbieber"]
 stemmed_words = [tw_stemmer(w) for w in test_words]
-all_wids = set([word2wid[x] for x in stemmed_words]) #stemming might create duplicates; remove them
+all_wids = set([word2wid[x] for x in stemmed_words]) # stemming might create duplicates; remove them
 
 # you could choose to just select some pairs and add them by hand instead
 # but here we automatically create all pairs 
 wid_pairs = make_pairs(all_wids)
 
 
-#read in the count information
+# read in the count information
 (o_counts, co_counts, N) = read_counts("/afs/inf.ed.ac.uk/group/teaching/anlp/asgn3/counts", all_wids)
 
-#make the word vectors
+# make the word vectors
 vectors = create_ppmi_vectors(all_wids, o_counts, co_counts, N)
 
 # compute cosine similarites for all pairs we consider
