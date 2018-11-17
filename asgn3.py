@@ -67,8 +67,13 @@ def cos_sim(v0,v1):
   # giving the values at those dimensions.
 
   #You will need to replace with the real function
-  #print("Warning: cos_sim is incorrectly defined")
-  return 0
+  sum0 = mt.sqrt(sum([i**2 for i in v0.values()]))
+  sum1 = mt.sqrt(sum([i**2 for i in v1.values()]))
+  total = 0
+  for w in v0:
+      if w in v1:
+          total += v0[w]*v1[w]          
+  return total/float(sum0*sum1)
 
 def create_ppmi_vectors(wids, o_counts, co_counts, tot_count):
     '''Creates context vectors for the words in wids, using PPMI.
