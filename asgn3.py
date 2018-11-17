@@ -67,13 +67,39 @@ def cos_sim(v0,v1):
   # giving the values at those dimensions.
 
   #You will need to replace with the real function
-  sum0 = mt.sqrt(sum([i**2 for i in v0.values()]))
-  sum1 = mt.sqrt(sum([i**2 for i in v1.values()]))
+  sum0 = get_vector_len(v0)
+  sum1 = get_vector_len(v1)
   total = 0
   for w in v0:
       if w in v1:
           total += v0[w]*v1[w]          
   return total/float(sum0*sum1)
+
+def get_vector_len(v):
+    return mt.sqrt(sum([i**2 for i in v.values()]))
+
+def jaccard_sim(v0,v1):
+    all_id = set()
+    for i in v0.keys():
+        all_id.add(i)
+    for i in v0.keys():
+        all_id.add(i)
+    x = 0
+    y = 0
+    for id in all_id:
+        if id not in v0.keys():
+            x += 0
+            y += v1[id]
+        elif id not in v1.keys():
+            x += 0
+            y += v0[id]
+        else:
+            x+=min(v1[id],v0[id])
+            y+=max(v1[id],v0[id])
+    return x/y
+    
+
+
 
 def create_ppmi_vectors(wids, o_counts, co_counts, tot_count):
     '''Creates context vectors for the words in wids, using PPMI.
@@ -196,3 +222,9 @@ c_sims = {(wid0,wid1): cos_sim(vectors[wid0],vectors[wid1]) for (wid0,wid1) in w
 
 print("Sort by cosine similarity")
 print_sorted_pairs(c_sims, o_counts)
+
+# compute cosine similarites for all pairs we consider
+j_sims = {(wid0,wid1): jaccard_sim(vectors[wid0],vectors[wid1]) for (wid0,wid1) in wid_pairs}
+
+print("Sort by jaccard similarity")
+print_sorted_pairs(j_sims, o_counts)
