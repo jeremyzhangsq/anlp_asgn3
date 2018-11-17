@@ -67,7 +67,7 @@ def cos_sim(v0,v1):
   # giving the values at those dimensions.
 
   #You will need to replace with the real function
-  print("Warning: cos_sim is incorrectly defined")
+  #print("Warning: cos_sim is incorrectly defined")
   return 0
 
 def create_ppmi_vectors(wids, o_counts, co_counts, tot_count):
@@ -89,7 +89,12 @@ def create_ppmi_vectors(wids, o_counts, co_counts, tot_count):
     for wid0 in wids:
         ## you will need to change this
         vectors[wid0] = {}
-    print("Warning: create_ppmi_vectors is incorrectly defined")
+        cx = o_counts[wid0]
+        for y in co_counts[wid0]:
+            cxy = co_counts[wid0][y]
+            cy = o_counts[y]
+            vectors[wid0][y] = PMI(cxy,cx,cy,N)
+            
     return vectors
 
 def read_counts(filename, wids):
