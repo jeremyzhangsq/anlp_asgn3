@@ -1,6 +1,7 @@
 from __future__ import division
 import math as mt
 import operator
+from load_map import wid2word, word2wid
 from nltk.stem import *
 from nltk.stem.porter import *
 import matplotlib.pyplot as plt
@@ -41,7 +42,7 @@ def PMI(c_xy, c_x, c_y, N):
   :return: the pmi value
 
   '''
-  return 0 # you need to fix this
+  return mt.log2(N*c_xy/float(c_x*c_y)) # you need to fix this
 
 # Do a simple error check using value computed by hand
 if(PMI(2,4,3,12) != 1):
