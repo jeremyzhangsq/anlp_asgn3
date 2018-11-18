@@ -1,7 +1,7 @@
 from __future__ import division
 import math as mt
 import operator
-from load_map import wid2word, word2wid
+from load_map import wid2word, word2wid,TOTAL_WORD
 from nltk.stem import *
 from nltk.stem.porter import *
 import matplotlib.pyplot as plt
@@ -40,7 +40,7 @@ def LLR(c1,c2,c12,p1,p2,p, total):
     l2 = logL(c2-c12,total-c1,p)
     l3 = logL(c12,c1,p1)
     l4 = logL(c2-c12,total-c1,p2)
-    return l1+l2-l3-l4
+    return -2*(l1+l2-l3-l4)
 
 def PMI(c_xy, c_x, c_y, N):
   '''Compute the pointwise mutual information using cooccurrence counts.
@@ -152,29 +152,26 @@ def create_llr_vectors(wids, o_counts, co_counts, tot_count):
     for wid0 in wids:
         ## you will need to change this
         vectors[wid0] = {}
+        high = []
         c1 = o_counts[wid0]
         for y in co_counts[wid0]:
             c12 = co_counts[wid0][y]
             c2 = o_counts[y]
+            if c12 == c2:
+                print(wid2word[wid0],wid2word[y])
+                high.append(y)
+                continue
             p = c2/float(tot_count)  
             p1 = c12/float(c1)
             p2 = (c2-c12)/float(tot_count-c1)
             val = LLR(c1,c2,c12,p1,p2,p,tot_count)
             vectors[wid0][y] = val
-            
+        ## for the case c12=c2, assign score to 2*best
+        best = max(vectors[wid0].values())
+        for y in high:
+            vectors[wid0][y] = 2*best
     return vectors
     
-def get_total_word_number(filename):
-    
-    fp = open(filename)
-    N = float(next(fp))
-    total = 0
-    for line in fp:
-        line = line.strip().split("\t")
-        d = dict([int(y) for y in x.split(" ")] for x in line[2:])
-        for i in d.keys():
-            total += d[i]       
-    return total/2
 
 def read_counts(filename, wids):
   '''Reads the counts from file. It returns counts for all words, but to
@@ -281,8 +278,7 @@ print_sorted_pairs(j_sims, o_counts)
 
 print("=====================LLR=============================")
 # make the word vectors
-total = get_total_word_number("/afs/inf.ed.ac.uk/group/teaching/anlp/asgn3/counts")
-vectors2 = create_llr_vectors(all_wids, o_counts, co_counts, total)
+vectors2 = create_llr_vectors(all_wids, o_counts, co_counts, TOTAL_WORD)
 
 # compute cosine similarites for all pairs we consider
 c_sims = {(wid0,wid1): cos_sim(vectors2[wid0],vectors2[wid1]) for (wid0,wid1) in wid_pairs}
