@@ -28,19 +28,18 @@ def tw_stemmer(word):
     return STEMMER.stem(word)
 
 
-# L function for Dunning Likelihood Ratio 
-def L(k,n,x):
-    print(k,n,x)
-    print(mt.pow(x,k))
-    print(mt.pow(1-x,n-k))
-    return mt.pow(x,k)*mt.pow(1-x,n-k)
+# logged L function for Dunning Likelihood Ratio 
+def logL(k,n,x):
+    a = k*mt.log(x)
+    b = (n-k)*mt.log(1-x)    
+    return a+b
 
 # logged Dunning Likelihood Ratio
-def LLR(c1,c2,c12,p1,p2,p, N):
-    l1 = mt.log2(L(c12,c1,p))
-    l2 = mt.log2(L(c2-c12,N-c1,p))
-    l3 = mt.log2(L(c12,c1,p1))
-    l4 = mt.log2(L(c2-c12,N-c1,p2))
+def LLR(c1,c2,c12,p1,p2,p, total):
+    l1 = logL(c12,c1,p)
+    l2 = logL(c2-c12,total-c1,p)
+    l3 = logL(c12,c1,p1)
+    l4 = logL(c2-c12,total-c1,p2)
     return l1+l2-l3-l4
 
 def PMI(c_xy, c_x, c_y, N):
@@ -165,6 +164,17 @@ def create_llr_vectors(wids, o_counts, co_counts, tot_count):
             
     return vectors
     
+def get_total_word_number(filename):
+    
+    fp = open(filename)
+    N = float(next(fp))
+    total = 0
+    for line in fp:
+        line = line.strip().split("\t")
+        d = dict([int(y) for y in x.split(" ")] for x in line[2:])
+        for i in d.keys():
+            total += d[i]       
+    return total/2
 
 def read_counts(filename, wids):
   '''Reads the counts from file. It returns counts for all words, but to
@@ -271,7 +281,7 @@ print_sorted_pairs(j_sims, o_counts)
 
 print("=====================LLR=============================")
 # make the word vectors
-total = len(wid2word.keys())
+total = get_total_word_number("/afs/inf.ed.ac.uk/group/teaching/anlp/asgn3/counts")
 vectors2 = create_llr_vectors(all_wids, o_counts, co_counts, total)
 
 # compute cosine similarites for all pairs we consider
