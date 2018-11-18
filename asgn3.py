@@ -27,8 +27,21 @@ def tw_stemmer(word):
   else:
     return STEMMER.stem(word)
 
-def TF_IDF():
-    pass
+
+# L function for Dunning Likelihood Ratio 
+def L(k,n,x):
+    print(k,n,x)
+    print(mt.pow(x,k))
+    print(mt.pow(1-x,n-k))
+    return mt.pow(x,k)*mt.pow(1-x,n-k)
+
+# logged Dunning Likelihood Ratio
+def LLR(c1,c2,c12,p1,p2,p, N):
+    l1 = mt.log2(L(c12,c1,p))
+    l2 = mt.log2(L(c2-c12,N-c1,p))
+    l3 = mt.log2(L(c12,c1,p1))
+    l4 = mt.log2(L(c2-c12,N-c1,p2))
+    return l1+l2-l3-l4
 
 def PMI(c_xy, c_x, c_y, N):
   '''Compute the pointwise mutual information using cooccurrence counts.
@@ -127,13 +140,31 @@ def create_ppmi_vectors(wids, o_counts, co_counts, tot_count):
         for y in co_counts[wid0]:
             cxy = co_counts[wid0][y]
             cy = o_counts[y]
-            val = PMI(cxy,cx,cy,N)
+            val = PMI(cxy,cx,cy,tot_count)
             if val<0:
                 vectors[wid0][y] = 0
             else:
                 vectors[wid0][y] = val
             
     return vectors
+
+def create_llr_vectors(wids, o_counts, co_counts, tot_count):
+    vectors = {}
+    for wid0 in wids:
+        ## you will need to change this
+        vectors[wid0] = {}
+        c1 = o_counts[wid0]
+        for y in co_counts[wid0]:
+            c12 = co_counts[wid0][y]
+            c2 = o_counts[y]
+            p = c2/float(tot_count)  
+            p1 = c12/float(c1)
+            p2 = (c2-c12)/float(tot_count-c1)
+            val = LLR(c1,c2,c12,p1,p2,p,tot_count)
+            vectors[wid0][y] = val
+            
+    return vectors
+    
 
 def read_counts(filename, wids):
   '''Reads the counts from file. It returns counts for all words, but to
@@ -221,6 +252,7 @@ wid_pairs = make_pairs(all_wids)
 # read in the count information
 (o_counts, co_counts, N) = read_counts("/afs/inf.ed.ac.uk/group/teaching/anlp/asgn3/counts", all_wids)
 
+print("=====================PPMI===========================")
 # make the word vectors
 vectors = create_ppmi_vectors(all_wids, o_counts, co_counts, N)
 
@@ -232,6 +264,24 @@ print_sorted_pairs(c_sims, o_counts)
 
 # compute cosine similarites for all pairs we consider
 j_sims = {(wid0,wid1): jaccard_sim(vectors[wid0],vectors[wid1]) for (wid0,wid1) in wid_pairs}
+
+print("Sort by jaccard similarity")
+print_sorted_pairs(j_sims, o_counts)
+
+
+print("=====================LLR=============================")
+# make the word vectors
+total = len(wid2word.keys())
+vectors2 = create_llr_vectors(all_wids, o_counts, co_counts, total)
+
+# compute cosine similarites for all pairs we consider
+c_sims = {(wid0,wid1): cos_sim(vectors2[wid0],vectors2[wid1]) for (wid0,wid1) in wid_pairs}
+
+print("Sort by cosine similarity")
+print_sorted_pairs(c_sims, o_counts)
+
+# compute cosine similarites for all pairs we consider
+j_sims = {(wid0,wid1): jaccard_sim(vectors2[wid0],vectors2[wid1]) for (wid0,wid1) in wid_pairs}
 
 print("Sort by jaccard similarity")
 print_sorted_pairs(j_sims, o_counts)
