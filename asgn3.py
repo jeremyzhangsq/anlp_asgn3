@@ -1,5 +1,6 @@
 from __future__ import division
 import math as mt
+import numpy as np
 import operator
 from load_map import wid2word, word2wid,TOTAL_WORD
 from nltk.stem import *
@@ -113,7 +114,28 @@ def jaccard_sim(v0,v1):
             y+=max(v1[id],v0[id])
     return x/y
     
+def create_freq_vectors(wids, o_counts, co_counts, tot_count):
+    '''Creates context vectors for the words in wids, using the number of co-ocurrance.
+    These should be sparse vectors.
 
+    :type wids: list of int
+    :type o_counts: dict
+    :type co_counts: dict of dict
+    :type tot_count: int
+    :param wids: the ids of the words to make vectors for
+    :param o_counts: the counts of each word (indexed by id)
+    :param co_counts: the cooccurrence counts of each word pair (indexed by ids)
+    :param tot_count: the total number of observations
+    :rtype: dict
+    :return: the context vectors, indexed by word id
+    '''
+    vectors = {}
+    for wid0 in wids:
+        ## you will need to change this
+        vectors[wid0] = {}
+        for y in co_counts[wid0]:
+            vectors[wid0][y] = co_counts[wid0][y]
+    return vectors
 
 
 def create_ppmi_vectors(wids, o_counts, co_counts, tot_count):
@@ -148,6 +170,20 @@ def create_ppmi_vectors(wids, o_counts, co_counts, tot_count):
     return vectors
 
 def create_llr_vectors(wids, o_counts, co_counts, tot_count):
+    '''Creates context vectors for the words in wids, using Duning Log Likelihood Ratio.
+    These should be sparse vectors.
+
+    :type wids: list of int
+    :type o_counts: dict
+    :type co_counts: dict of dict
+    :type tot_count: int
+    :param wids: the ids of the words to make vectors for
+    :param o_counts: the counts of each word (indexed by id)
+    :param co_counts: the cooccurrence counts of each word pair (indexed by ids)
+    :param tot_count: the total number of observations
+    :rtype: dict
+    :return: the context vectors, indexed by word id
+    '''
     vectors = {}
     for wid0 in wids:
         ## you will need to change this
@@ -196,6 +232,9 @@ def read_counts(filename, wids):
         co_counts[wid0] = dict([int(y) for y in x.split(" ")] for x in line[2:])
   return (o_counts, co_counts, N)
 
+def correlation_coeff(l1,l2):
+    return np.corrcoef(l1,l2)[0][1]
+
 def print_sorted_pairs(similarities, o_counts, first=0, last=100):
   '''Sorts the pairs of words by their similarity scores and prints
   out the sorted list from index first to last, along with the
@@ -212,10 +251,17 @@ def print_sorted_pairs(similarities, o_counts, first=0, last=100):
   :return: none
   '''
   if first < 0: last = len(similarities)
+  print("score\tpair\tw1 count\tw2 count")
+  l1 = []
+  l2 = []
   for pair in sorted(similarities.keys(), key=lambda x: similarities[x], reverse = True)[first:last]:
     word_pair = (wid2word[pair[0]], wid2word[pair[1]])
-    print("{:.2f}\t{:30}\t{}\t{}".format(similarities[pair],str(word_pair),
-                                         o_counts[pair[0]],o_counts[pair[1]]))
+    l1.append(similarities[pair])
+    l2.append(co_counts[pair[0]][pair[1]])
+    print("{:.2f}\t{:30}\t{}\t{}".format(similarities[pair],str(word_pair),o_counts[pair[0]],o_counts[pair[1]]))
+    
+  print("correlation coeff:{:.2f}".format(correlation_coeff(l1,l2)))
+  
 
 def freq_v_sim(sims):
   xs = []
@@ -246,6 +292,26 @@ def make_pairs(items):
   '''
   return [(x, y) for x in items for y in items if x < y]
 
+def print_result(all_wids, wid_pairs, o_counts,co_counts,N,func):
+    # make the word vectors
+    if func == "ppmi":
+        vectors = create_ppmi_vectors(all_wids,o_counts, co_counts, N)
+    elif func == "freq":
+        vectors = create_freq_vectors(all_wids,o_counts, co_counts, N)
+    elif func == "llr":
+        vectors = create_llr_vectors(all_wids,o_counts, co_counts, N)
+        
+    # compute cosine similarites for all pairs we consider
+    c_sims = {(wid0,wid1): cos_sim(vectors[wid0],vectors[wid1]) for (wid0,wid1) in wid_pairs}
+    
+    print("Sort by cosine similarity")
+    print_sorted_pairs(c_sims, o_counts)
+    
+    # compute cosine similarites for all pairs we consider
+    j_sims = {(wid0,wid1): jaccard_sim(vectors[wid0],vectors[wid1]) for (wid0,wid1) in wid_pairs}
+    
+    print("Sort by jaccard similarity")
+    print_sorted_pairs(j_sims, o_counts)
 
 test_words = ["cat", "dog", "mouse", "computer","@justinbieber"]
 stemmed_words = [tw_stemmer(w) for w in test_words]
@@ -259,35 +325,12 @@ wid_pairs = make_pairs(all_wids)
 # read in the count information
 (o_counts, co_counts, N) = read_counts("/afs/inf.ed.ac.uk/group/teaching/anlp/asgn3/counts", all_wids)
 
+print("=====================CO-OCCURANCE===========================")
+print_result(all_wids, wid_pairs, o_counts,co_counts,N,"freq")
+
 print("=====================PPMI===========================")
-# make the word vectors
-vectors = create_ppmi_vectors(all_wids, o_counts, co_counts, N)
-
-# compute cosine similarites for all pairs we consider
-c_sims = {(wid0,wid1): cos_sim(vectors[wid0],vectors[wid1]) for (wid0,wid1) in wid_pairs}
-
-print("Sort by cosine similarity")
-print_sorted_pairs(c_sims, o_counts)
-
-# compute cosine similarites for all pairs we consider
-j_sims = {(wid0,wid1): jaccard_sim(vectors[wid0],vectors[wid1]) for (wid0,wid1) in wid_pairs}
-
-print("Sort by jaccard similarity")
-print_sorted_pairs(j_sims, o_counts)
+print_result(all_wids, wid_pairs, o_counts,co_counts,N,"ppmi")
 
 
 print("=====================LLR=============================")
-# make the word vectors
-vectors2 = create_llr_vectors(all_wids, o_counts, co_counts, TOTAL_WORD)
-
-# compute cosine similarites for all pairs we consider
-c_sims = {(wid0,wid1): cos_sim(vectors2[wid0],vectors2[wid1]) for (wid0,wid1) in wid_pairs}
-
-print("Sort by cosine similarity")
-print_sorted_pairs(c_sims, o_counts)
-
-# compute cosine similarites for all pairs we consider
-j_sims = {(wid0,wid1): jaccard_sim(vectors2[wid0],vectors2[wid1]) for (wid0,wid1) in wid_pairs}
-
-print("Sort by jaccard similarity")
-print_sorted_pairs(j_sims, o_counts)
+print_result(all_wids, wid_pairs, o_counts,co_counts,TOTAL_WORD,"llr")
