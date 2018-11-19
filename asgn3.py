@@ -88,6 +88,7 @@ def cos_sim(v0,v1):
   total = 0
   for w in v0:
       if w in v1:
+          print(w,wid2word[w])
           total += v0[w]*v1[w]          
   return total/float(sum0*sum1)
 
@@ -207,7 +208,22 @@ def create_llr_vectors(wids, o_counts, co_counts, tot_count):
         for y in high:
             vectors[wid0][y] = 2*best
     return vectors
-    
+
+def t_test(c_xy, c_x,c_y,N):
+    return ((N*c_xy)-c_x*c_y)/(N*np.sqrt(c_x*c_y))
+
+def create_ttest_vectors(wids, o_counts, co_counts, tot_count):
+    vectors = {}
+    allwid = list(wid2word.keys())
+    allwid.sort()
+    for wid0 in wids:
+      w_dict = {}
+      for wid1 in allwid:
+        if wid1 in co_counts[wid0]:
+            t = t_test(co_counts[wid0][wid1],o_counts[wid0],o_counts[wid1],tot_count)
+            w_dict[wid1] = t  
+      vectors[wid0] = w_dict
+    return vectors    
 
 def read_counts(filename, wids):
   '''Reads the counts from file. It returns counts for all words, but to
@@ -256,11 +272,11 @@ def print_sorted_pairs(similarities, o_counts, first=0, last=100):
   l2 = []
   for pair in sorted(similarities.keys(), key=lambda x: similarities[x], reverse = True)[first:last]:
     word_pair = (wid2word[pair[0]], wid2word[pair[1]])
-    l1.append(similarities[pair])
-    l2.append(co_counts[pair[0]][pair[1]])
+    #l1.append(similarities[pair])
+    #l2.append(co_counts[pair[0]][pair[1]])
     print("{:.2f}\t{:30}\t{}\t{}".format(similarities[pair],str(word_pair),o_counts[pair[0]],o_counts[pair[1]]))
     
-  print("correlation coeff:{:.2f}".format(correlation_coeff(l1,l2)))
+  #print("correlation coeff:{:.2f}".format(correlation_coeff(l1,l2)))
   
 
 def freq_v_sim(sims):
@@ -300,6 +316,8 @@ def print_result(all_wids, wid_pairs, o_counts,co_counts,N,func):
         vectors = create_freq_vectors(all_wids,o_counts, co_counts, N)
     elif func == "llr":
         vectors = create_llr_vectors(all_wids,o_counts, co_counts, N)
+    elif func == "ttest":
+        vectors = create_ttest_vectors(all_wids,o_counts, co_counts, N)    
         
     # compute cosine similarites for all pairs we consider
     c_sims = {(wid0,wid1): cos_sim(vectors[wid0],vectors[wid1]) for (wid0,wid1) in wid_pairs}
@@ -320,9 +338,9 @@ def print_top_occur(word, num):
         print(wid2word[sorted_white[i][1]])
 
 test_words = ["cat", "dog", "mouse", "computer","@justinbieber"]
-color_words = ["white","black","blue","red","yellow","green"]
-
-stemmed_words = [tw_stemmer(w) for w in color_words]
+color_words = ["white","black","blue","red"]
+low_words = ['jameela','bullwinkl']
+stemmed_words = [tw_stemmer(w) for w in low_words]
 all_wids = set([word2wid[x] for x in stemmed_words]) # stemming might create duplicates; remove them
 
 # you could choose to just select some pairs and add them by hand instead
@@ -347,4 +365,7 @@ print_result(all_wids, wid_pairs, o_counts,co_counts,N,"ppmi")
 #print("=====================LLR=============================")
 #TOTAL_WORD = sum(o_counts.values())
 #print_result(all_wids, wid_pairs, o_counts,co_counts,TOTAL_WORD,"llr")
+
+print("=====================TTEST===========================")
+print_result(all_wids, wid_pairs, o_counts,co_counts,N,"ttest")
 
