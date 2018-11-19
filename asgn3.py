@@ -313,8 +313,16 @@ def print_result(all_wids, wid_pairs, o_counts,co_counts,N,func):
     print("Sort by jaccard similarity")
     print_sorted_pairs(j_sims, o_counts)
 
+def print_top_occur(word, num):
+    sorted_white = sorted([(value, key) for (key,value) in co_counts[word2wid[word]].items()],reverse = True)
+    print("{}'s top {} occurance words:".format(word,num))
+    for i in range(num):
+        print(wid2word[sorted_white[i][1]])
+
 test_words = ["cat", "dog", "mouse", "computer","@justinbieber"]
-stemmed_words = [tw_stemmer(w) for w in test_words]
+color_words = ["white","black","blue","red","yellow","green"]
+
+stemmed_words = [tw_stemmer(w) for w in color_words]
 all_wids = set([word2wid[x] for x in stemmed_words]) # stemming might create duplicates; remove them
 
 # you could choose to just select some pairs and add them by hand instead
@@ -325,13 +333,18 @@ wid_pairs = make_pairs(all_wids)
 # read in the count information
 (o_counts, co_counts, N) = read_counts("/afs/inf.ed.ac.uk/group/teaching/anlp/asgn3/counts", all_wids)
 
-print("=====================CO-OCCURANCE===========================")
-print_result(all_wids, wid_pairs, o_counts,co_counts,N,"freq")
+# we first print out the top 5 occurance words of given words
+for s in stemmed_words:
+    print_top_occur(s,5)
+
+#print("=====================CO-OCCURANCE===========================")
+#print_result(all_wids, wid_pairs, o_counts,co_counts,N,"freq")
 
 print("=====================PPMI===========================")
 print_result(all_wids, wid_pairs, o_counts,co_counts,N,"ppmi")
 
 
-print("=====================LLR=============================")
-TOTAL_WORD = sum(o_counts.values())
-print_result(all_wids, wid_pairs, o_counts,co_counts,TOTAL_WORD,"llr")
+#print("=====================LLR=============================")
+#TOTAL_WORD = sum(o_counts.values())
+#print_result(all_wids, wid_pairs, o_counts,co_counts,TOTAL_WORD,"llr")
+
