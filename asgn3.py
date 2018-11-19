@@ -2,7 +2,7 @@ from __future__ import division
 import math as mt
 import numpy as np
 import operator
-from load_map import wid2word, word2wid,TOTAL_WORD
+from load_map import wid2word, word2wid
 from nltk.stem import *
 from nltk.stem.porter import *
 import matplotlib.pyplot as plt
@@ -333,4 +333,5 @@ print_result(all_wids, wid_pairs, o_counts,co_counts,N,"ppmi")
 
 
 print("=====================LLR=============================")
+TOTAL_WORD = sum(o_counts.values())
 print_result(all_wids, wid_pairs, o_counts,co_counts,TOTAL_WORD,"llr")
