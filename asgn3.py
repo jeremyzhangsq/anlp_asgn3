@@ -88,7 +88,6 @@ def cos_sim(v0,v1):
   total = 0
   for w in v0:
       if w in v1:
-          print(w,wid2word[w])
           total += v0[w]*v1[w]          
   return total/float(sum0*sum1)
 
@@ -221,9 +220,12 @@ def create_ttest_vectors(wids, o_counts, co_counts, tot_count):
       for wid1 in allwid:
         if wid1 in co_counts[wid0]:
             t = t_test(co_counts[wid0][wid1],o_counts[wid0],o_counts[wid1],tot_count)
+            w_dict[wid1] = t
+        else:
+            t = t_test(0,o_counts[wid0],o_counts[wid1],tot_count)
             w_dict[wid1] = t  
       vectors[wid0] = w_dict
-    return vectors    
+    return vectors  
 
 def read_counts(filename, wids):
   '''Reads the counts from file. It returns counts for all words, but to
@@ -308,28 +310,32 @@ def make_pairs(items):
   '''
   return [(x, y) for x in items for y in items if x < y]
 
-def print_result(all_wids, wid_pairs, o_counts,co_counts,N,func):
-    # make the word vectors
-    if func == "ppmi":
-        vectors = create_ppmi_vectors(all_wids,o_counts, co_counts, N)
-    elif func == "freq":
-        vectors = create_freq_vectors(all_wids,o_counts, co_counts, N)
-    elif func == "llr":
-        vectors = create_llr_vectors(all_wids,o_counts, co_counts, N)
-    elif func == "ttest":
-        vectors = create_ttest_vectors(all_wids,o_counts, co_counts, N)    
-        
+def print_result(all_wids, wid_pairs, o_counts,co_counts,N):
+    
+    v1 = create_ppmi_vectors(all_wids,o_counts, co_counts, N)
+    v2 = create_ttest_vectors(all_wids,o_counts, co_counts, N) 
+                          
     # compute cosine similarites for all pairs we consider
-    c_sims = {(wid0,wid1): cos_sim(vectors[wid0],vectors[wid1]) for (wid0,wid1) in wid_pairs}
-    
-    print("Sort by cosine similarity")
-    print_sorted_pairs(c_sims, o_counts)
-    
+    c_1 = {(wid0,wid1): cos_sim(v1[wid0],v1[wid1]) for (wid0,wid1) in wid_pairs}
+    c_2 = {(wid0,wid1): cos_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
+    #print_sorted_pairs(c_sims, o_counts)
     # compute cosine similarites for all pairs we consider
-    j_sims = {(wid0,wid1): jaccard_sim(vectors[wid0],vectors[wid1]) for (wid0,wid1) in wid_pairs}
+    j_1 = {(wid0,wid1): jaccard_sim(v1[wid0],v1[wid1]) for (wid0,wid1) in wid_pairs}
+    j_2 = {(wid0,wid1): jaccard_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
+    print("w1\tc1\tw2\tc2\tpc\tpj\ttc\ttj")
+    first = 0
+    last = 100
+    if first < 0: last = len(c_1)
+    for pair in sorted(c_1 .keys(), key=lambda x: c_1[x], reverse = True)[first:last]:
+        word_pair = (wid2word[pair[0]], wid2word[pair[1]])
+        #l1.append(similarities[pair])
+        #l2.append(co_counts[pair[0]][pair[1]])
+        print("{} \t{} \t{} \t{} \t{:.2f} \t{:.2f} \t{:.2f} \t{:.2f} \\\\".format(wid2word[pair[0]],o_counts[pair[0]],wid2word[pair[1]],o_counts[pair[1]],c_1[pair],j_1[pair],c_2[pair],j_2[pair]))
+       
     
-    print("Sort by jaccard similarity")
-    print_sorted_pairs(j_sims, o_counts)
+    #print("Sort by jaccard similarity")
+    #print_sorted_pairs(j_sims, o_counts)
+    return v1,v2
 
 def print_top_occur(word, num):
     sorted_white = sorted([(value, key) for (key,value) in co_counts[word2wid[word]].items()],reverse = True)
@@ -339,8 +345,9 @@ def print_top_occur(word, num):
 
 test_words = ["cat", "dog", "mouse", "computer","@justinbieber"]
 color_words = ["white","black","blue","red"]
-low_words = ['jameela','bullwinkl']
-stemmed_words = [tw_stemmer(w) for w in low_words]
+#low_words = ['jameela','bullwinkl']
+words = ['#bieberfact','@bieber','@jdbiebercrews','pop','music','dad','loove','love','physic','#rock']
+stemmed_words = [tw_stemmer(w) for w in words]
 all_wids = set([word2wid[x] for x in stemmed_words]) # stemming might create duplicates; remove them
 
 # you could choose to just select some pairs and add them by hand instead
@@ -358,14 +365,22 @@ for s in stemmed_words:
 #print("=====================CO-OCCURANCE===========================")
 #print_result(all_wids, wid_pairs, o_counts,co_counts,N,"freq")
 
-print("=====================PPMI===========================")
-print_result(all_wids, wid_pairs, o_counts,co_counts,N,"ppmi")
+v1,v2 = print_result(all_wids, wid_pairs, o_counts,co_counts,N)
 
+t = [word2wid["#bieberfact"],word2wid["@bieber"],word2wid["@jdbiebercrews"]]
+for k in v1.keys():
+    if k in t:
+        c1 = 0
+        for v in v1[k].values():
+            if v == 0:
+                c1 += 1
+        print("{}:ppmi-{}/{}".format(wid2word[k],c1,len(v1[k])))
 
-#print("=====================LLR=============================")
-#TOTAL_WORD = sum(o_counts.values())
-#print_result(all_wids, wid_pairs, o_counts,co_counts,TOTAL_WORD,"llr")
-
-print("=====================TTEST===========================")
-print_result(all_wids, wid_pairs, o_counts,co_counts,N,"ttest")
+for k in v2.keys():
+    if k in t:
+        c1 = 0
+        for v in v2[k].values():
+            if v < 0:
+                c1 += 1
+        print("{}:ttest-{}/{}".format(wid2word[k],c1,len(v2[k])))
 
