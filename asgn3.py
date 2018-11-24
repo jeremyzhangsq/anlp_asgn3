@@ -310,6 +310,23 @@ def make_pairs(items):
   '''
   return [(x, y) for x in items for y in items if x < y]
 
+def print_vector_ratio(v1,v2,t):
+    for k in v1.keys():
+        if k in t:
+            c1 = 0
+            for v in v1[k].values():
+                if v == 0:
+                    c1 += 1
+            print("{}:ppmi-{}/{}".format(wid2word[k],c1,len(v1[k])))
+    
+    for k in v2.keys():
+        if k in t:
+            c1 = 0
+            for v in v2[k].values():
+                if v < 0:
+                    c1 += 1
+            print("{}:ttest-{}/{}".format(wid2word[k],c1,len(v2[k])))
+
 def print_result(all_wids, wid_pairs, o_counts,co_counts,N):
     
     v1 = create_ppmi_vectors(all_wids,o_counts, co_counts, N)
@@ -367,20 +384,7 @@ for s in stemmed_words:
 
 v1,v2 = print_result(all_wids, wid_pairs, o_counts,co_counts,N)
 
+# calculate vector details
 t = [word2wid["#bieberfact"],word2wid["@bieber"],word2wid["@jdbiebercrews"]]
-for k in v1.keys():
-    if k in t:
-        c1 = 0
-        for v in v1[k].values():
-            if v == 0:
-                c1 += 1
-        print("{}:ppmi-{}/{}".format(wid2word[k],c1,len(v1[k])))
-
-for k in v2.keys():
-    if k in t:
-        c1 = 0
-        for v in v2[k].values():
-            if v < 0:
-                c1 += 1
-        print("{}:ttest-{}/{}".format(wid2word[k],c1,len(v2[k])))
+print_vector_ratio(v1,v2,t)
 
