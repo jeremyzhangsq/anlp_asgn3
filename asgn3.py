@@ -2,6 +2,7 @@ from __future__ import division
 import math as mt
 import numpy as np
 import operator
+import random
 from load_map import wid2word, word2wid
 from nltk.stem import *
 from nltk.stem.porter import *
@@ -27,21 +28,6 @@ def tw_stemmer(word):
     return word
   else:
     return STEMMER.stem(word)
-
-
-# logged L function for Dunning Likelihood Ratio 
-def logL(k,n,x):
-    a = k*mt.log(x)
-    b = (n-k)*mt.log(1-x)    
-    return a+b
-
-# logged Dunning Likelihood Ratio
-def LLR(c1,c2,c12,p1,p2,p, total):
-    l1 = logL(c12,c1,p)
-    l2 = logL(c2-c12,total-c1,p)
-    l3 = logL(c12,c1,p1)
-    l4 = logL(c2-c12,total-c1,p2)
-    return -2*(l1+l2-l3-l4)
 
 def PMI(c_xy, c_x, c_y, N):
   '''Compute the pointwise mutual information using cooccurrence counts.
@@ -88,7 +74,9 @@ def cos_sim(v0,v1):
   total = 0
   for w in v0:
       if w in v1:
-          total += v0[w]*v1[w]          
+          total += v0[w]*v1[w]
+  if sum0*sum1 == 0:
+      return -1
   return total/float(sum0*sum1)
 
 def get_vector_len(v):
@@ -112,31 +100,10 @@ def jaccard_sim(v0,v1):
         else:
             x+=min(v1[id],v0[id])
             y+=max(v1[id],v0[id])
+    if y == 0:
+        return 0
     return x/y
     
-def create_freq_vectors(wids, o_counts, co_counts, tot_count):
-    '''Creates context vectors for the words in wids, using the number of co-ocurrance.
-    These should be sparse vectors.
-
-    :type wids: list of int
-    :type o_counts: dict
-    :type co_counts: dict of dict
-    :type tot_count: int
-    :param wids: the ids of the words to make vectors for
-    :param o_counts: the counts of each word (indexed by id)
-    :param co_counts: the cooccurrence counts of each word pair (indexed by ids)
-    :param tot_count: the total number of observations
-    :rtype: dict
-    :return: the context vectors, indexed by word id
-    '''
-    vectors = {}
-    for wid0 in wids:
-        ## you will need to change this
-        vectors[wid0] = {}
-        for y in co_counts[wid0]:
-            vectors[wid0][y] = co_counts[wid0][y]
-    return vectors
-
 
 def create_ppmi_vectors(wids, o_counts, co_counts, tot_count):
     '''Creates context vectors for the words in wids, using PPMI.
@@ -169,44 +136,6 @@ def create_ppmi_vectors(wids, o_counts, co_counts, tot_count):
             
     return vectors
 
-def create_llr_vectors(wids, o_counts, co_counts, tot_count):
-    '''Creates context vectors for the words in wids, using Duning Log Likelihood Ratio.
-    These should be sparse vectors.
-
-    :type wids: list of int
-    :type o_counts: dict
-    :type co_counts: dict of dict
-    :type tot_count: int
-    :param wids: the ids of the words to make vectors for
-    :param o_counts: the counts of each word (indexed by id)
-    :param co_counts: the cooccurrence counts of each word pair (indexed by ids)
-    :param tot_count: the total number of observations
-    :rtype: dict
-    :return: the context vectors, indexed by word id
-    '''
-    vectors = {}
-    for wid0 in wids:
-        ## you will need to change this
-        vectors[wid0] = {}
-        high = []
-        c1 = o_counts[wid0]
-        for y in co_counts[wid0]:
-            c12 = co_counts[wid0][y]
-            c2 = o_counts[y]
-            if c12 == c2:
-                print(wid2word[wid0],wid2word[y])
-                high.append(y)
-                continue
-            p = c2/float(tot_count)  
-            p1 = c12/float(c1)
-            p2 = (c2-c12)/float(tot_count-c1)
-            val = LLR(c1,c2,c12,p1,p2,p,tot_count)
-            vectors[wid0][y] = val
-        ## for the case c12=c2, assign score to 2*best
-        best = max(vectors[wid0].values())
-        for y in high:
-            vectors[wid0][y] = 2*best
-    return vectors
 
 def t_test(c_xy, c_x,c_y,N):
     return ((N*c_xy)-c_x*c_y)/(N*np.sqrt(c_x*c_y))
@@ -250,8 +179,6 @@ def read_counts(filename, wids):
         co_counts[wid0] = dict([int(y) for y in x.split(" ")] for x in line[2:])
   return (o_counts, co_counts, N)
 
-def correlation_coeff(l1,l2):
-    return np.corrcoef(l1,l2)[0][1]
 
 def print_sorted_pairs(similarities, o_counts, first=0, last=100):
   '''Sorts the pairs of words by their similarity scores and prints
@@ -270,32 +197,44 @@ def print_sorted_pairs(similarities, o_counts, first=0, last=100):
   '''
   if first < 0: last = len(similarities)
   print("score\tpair\tw1 count\tw2 count")
-  l1 = []
-  l2 = []
   for pair in sorted(similarities.keys(), key=lambda x: similarities[x], reverse = True)[first:last]:
     word_pair = (wid2word[pair[0]], wid2word[pair[1]])
-    #l1.append(similarities[pair])
-    #l2.append(co_counts[pair[0]][pair[1]])
     print("{:.2f}\t{:30}\t{}\t{}".format(similarities[pair],str(word_pair),o_counts[pair[0]],o_counts[pair[1]]))
     
-  #print("correlation coeff:{:.2f}".format(correlation_coeff(l1,l2)))
-  
-
-def freq_v_sim(sims):
+    
+def freq_v_sim(sims,name):
   xs = []
   ys = []
   for pair in sims.items():
     ys.append(pair[1])
-    c0 = o_counts[pair[0][0]]
+    # c0 = o_counts[pair[0][0]]
     c1 = o_counts[pair[0][1]]
-    xs.append(min(c0,c1))
+    # frequency of the second word
+    xs.append(c1)
   plt.clf() # clear previous plots (if any)
-  plt.xscale('log') # set x axis to log scale. Must do *before* creating plot
+  # plt.xscale('log') # set x axis to log scale. Must do *before* creating plot
   plt.plot(xs, ys, 'k.') # create the scatter plot
-  plt.xlabel('Min Freq')
+  plt.xlabel('Second Word Freq')
   plt.ylabel('Similarity')
-  print("Freq vs Similarity Spearman correlation = {:.2f}".format(spearmanr(xs,ys)[0]))
-#  plt.show() #display the set of plots
+#  print("Freq vs Similarity Spearman correlation = {:.2f}".format(spearmanr(xs,ys)[0]))
+  plt.savefig(name) #display the set of plots
+
+def get_random_wids(size):
+    l = []
+    while len(l) < size:
+        i1, id = random.choice(list(word2wid.items()))
+        l.append(id)
+    return l
+
+def get_random_pairs(all_wids,o_counts, co_counts, size, thres):
+    l = []
+    while len(l) < size:
+        i1 = random.choice(all_wids)
+        if o_counts[i1] < thres:
+            continue
+        i2, ccnt = random.choice(list(co_counts[i1].items()))
+        l.append((i1,i2))
+    return l
 
 def make_pairs(items):
   '''
@@ -326,6 +265,18 @@ def print_vector_ratio(v1,v2,t):
                 if v < 0:
                     c1 += 1
             print("{}:ttest-{}/{}".format(wid2word[k],c1,len(v2[k])))
+
+def get_similarity(all_wids, wid_pairs, o_counts,co_counts,N):
+    v1 = create_ppmi_vectors(all_wids,o_counts, co_counts, N)
+    v2 = create_ttest_vectors(all_wids,o_counts, co_counts, N)                    
+    # compute cosine similarites for all pairs we consider
+    c_1 = {(wid0,wid1): cos_sim(v1[wid0],v1[wid1]) for (wid0,wid1) in wid_pairs}
+    c_2 = {(wid0,wid1): cos_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
+    #print_sorted_pairs(c_sims, o_counts)
+    # compute cosine similarites for all pairs we consider
+    j_1 = {(wid0,wid1): jaccard_sim(v1[wid0],v1[wid1]) for (wid0,wid1) in wid_pairs}
+    j_2 = {(wid0,wid1): jaccard_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
+    return c_1,j_1,c_2,j_2
 
 def print_result(all_wids, wid_pairs, o_counts,co_counts,N):
     
@@ -360,31 +311,37 @@ def print_top_occur(word, num):
     for i in range(num):
         print(wid2word[sorted_white[i][1]])
 
-test_words = ["cat", "dog", "mouse", "computer","@justinbieber"]
-color_words = ["white","black","blue","red"]
+#test_words = ["cat", "dog", "mouse", "computer","@justinbieber"]
+#color_words = ["white","black","blue","red"]
 #low_words = ['jameela','bullwinkl']
-words = ['#bieberfact','@bieber','@jdbiebercrews','pop','music','dad','loove','love','physic','#rock']
-stemmed_words = [tw_stemmer(w) for w in words]
-all_wids = set([word2wid[x] for x in stemmed_words]) # stemming might create duplicates; remove them
+#words = ['#bieberfact','@bieber','@jdbiebercrews','pop','music','dad','loove','love','physic','#rock']
+#stemmed_words = [tw_stemmer(w) for w in words]
+#all_wids = set([word2wid[x] for x in stemmed_words]) # stemming might create duplicates; remove them
 
 # you could choose to just select some pairs and add them by hand instead
 # but here we automatically create all pairs 
-wid_pairs = make_pairs(all_wids)
+# wid_pairs = make_pairs(all_wids)
 
-
+# random select word_pair
+size = 1000
+all_wids = get_random_wids(size)
 # read in the count information
 (o_counts, co_counts, N) = read_counts("/afs/inf.ed.ac.uk/group/teaching/anlp/asgn3/counts", all_wids)
-
+random.seed(1)
+#wid_pairs = get_random_pairs(all_wids,o_counts, co_counts,size, thres)
+wid_pairs = make_pairs(all_wids)
+ppmi_c_sim, ppmi_j_sim, t_c_sim, t_j_sim = get_similarity(all_wids, wid_pairs, o_counts,co_counts,N)
+freq_v_sim(ppmi_c_sim,"ppmi_c_sim.pdf")
+freq_v_sim(ppmi_j_sim,"ppmi_j_sim.pdf")
+freq_v_sim(t_c_sim,"t_c_sim.pdf")
+freq_v_sim(t_j_sim,"t_j_sim.pdf")
 # we first print out the top 5 occurance words of given words
-for s in stemmed_words:
-    print_top_occur(s,5)
+#for s in stemmed_words:
+#    print_top_occur(s,5)
 
-#print("=====================CO-OCCURANCE===========================")
-#print_result(all_wids, wid_pairs, o_counts,co_counts,N,"freq")
-
-v1,v2 = print_result(all_wids, wid_pairs, o_counts,co_counts,N)
+#v1,v2 = print_result(all_wids, wid_pairs, o_counts,co_counts,N)
 
 # calculate vector details
-t = [word2wid["#bieberfact"],word2wid["@bieber"],word2wid["@jdbiebercrews"]]
-print_vector_ratio(v1,v2,t)
+#t = [word2wid["#bieberfact"],word2wid["@bieber"],word2wid["@jdbiebercrews"]]
+#print_vector_ratio(v1,v2,t)
 
