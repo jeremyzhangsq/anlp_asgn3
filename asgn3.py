@@ -131,7 +131,7 @@ def create_ppmi_vectors(wids, o_counts, co_counts, tot_count):
             cy = o_counts[y]
             val = PMI(cxy,cx,cy,tot_count)
             if val<0:
-                vectors[wid0][y] = 0
+                continue
             else:
                 vectors[wid0][y] = val
             
@@ -208,8 +208,6 @@ def freq_v_sim(sims,name):
   ys = []
   for pair in sims.items():
     ys.append(pair[1])
-    #if pair[1] == 1:
-    #    print(wid2word[pair[0][0]],wid2word[pair[0][1]],o_counts[pair[0][0]],o_counts[pair[0][1]])
     c0 = o_counts[pair[0][0]]
     c1 = o_counts[pair[0][1]]
     # frequency of the minword
@@ -217,7 +215,7 @@ def freq_v_sim(sims,name):
   plt.clf() # clear previous plots (if any)
   plt.xscale('log') # set x axis to log scale. Must do *before* creating plot
   plt.plot(xs, ys, 'k.') # create the scatter plot
-  plt.xlabel('Log Min Word Freq for word pair')
+  plt.xlabel('Log Min Word Freq')
   plt.ylabel('Similarity')
   print("Freq vs Similarity Spearman correlation = {:.2f}".format(scipy.stats.spearmanr(xs,ys)[0]))
   print("Freq vs Similarity Pearson correlation = {:.2f}".format(np.corrcoef(xs,ys)[0][1]))
@@ -233,7 +231,7 @@ def get_random_wids(size):
 def get_random_pairs(all_wids,o_counts, thres):
     l = []
     for i1 in all_wids:
-        if o_counts[i1] < thres:
+        if o_counts[i1] < thres[0] or o_counts[i1] > thres[1]:
             continue
         l.append(i1)
     return make_pairs(l)
@@ -270,15 +268,15 @@ def print_vector_ratio(v1,v2,t):
 
 def get_similarity(all_wids, wid_pairs, o_counts,co_counts,N):
     v1 = create_ppmi_vectors(all_wids,o_counts, co_counts, N)
-    #v2 = create_ttest_vectors(all_wids,o_counts, co_counts, N)                    
-    # compute cosine similarites for all pairs we consider
+    v2 = create_ttest_vectors(all_wids,o_counts, co_counts, N)                    
+    #compute cosine similarites for all pairs we consider
     c_1 = {(wid0,wid1): cos_sim(v1[wid0],v1[wid1]) for (wid0,wid1) in wid_pairs}
-   # c_2 = {(wid0,wid1): cos_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
+    c_2 = {(wid0,wid1): cos_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
     #print_sorted_pairs(c_sims, o_counts)
     # compute cosine similarites for all pairs we consider
     j_1 = {(wid0,wid1): jaccard_sim(v1[wid0],v1[wid1]) for (wid0,wid1) in wid_pairs}
-   # j_2 = {(wid0,wid1): jaccard_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
-    return c_1,j_1
+    j_2 = {(wid0,wid1): jaccard_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
+    return c_1,j_1,c_2,j_2
 
 def print_result(all_wids, wid_pairs, o_counts,co_counts,N):
     
@@ -325,21 +323,22 @@ def print_top_occur(word, num):
 # wid_pairs = make_pairs(all_wids)
 
 # random select word_pair
-size = 1000
+size = 100
 all_wids = get_random_wids(size)
 # read in the count information
 (o_counts, co_counts, N) = read_counts("/afs/inf.ed.ac.uk/group/teaching/anlp/asgn3/counts", all_wids)
 random.seed(1)
-#wid_pairs = make_pairs(all_wids)
-wid_pairs = get_random_pairs(all_wids,o_counts, 500)
-print(len(wid_pairs))
-ppmi_c_sim, ppmi_j_sim = get_similarity(all_wids, wid_pairs, o_counts,co_counts,N)
+wid_pairs = make_pairs(all_wids)
+#wid_pairs = get_random_pairs(all_wids,o_counts, (500,10000))
+ppmi_c_sim, ppmi_j_sim, t_c_sim, t_j_sim = get_similarity(all_wids, wid_pairs, o_counts,co_counts,N)
 print("ppmi_cosine")
 freq_v_sim(ppmi_c_sim,"ppmi_c_sim.pdf")
 print("ppmi_jaccard")
-#freq_v_sim(ppmi_j_sim,"ppmi_j_sim.pdf")
-#freq_v_sim(t_c_sim,"t_c_sim.pdf")
-#freq_v_sim(t_j_sim,"t_j_sim.pdf")
+freq_v_sim(ppmi_j_sim,"ppmi_j_sim.pdf")
+print("t_cosine")
+freq_v_sim(t_c_sim,"t_c_sim.pdf")
+print("t_jaccard")
+freq_v_sim(t_j_sim,"t_j_sim.pdf")
 # we first print out the top 5 occurance words of given words
 #for s in stemmed_words:
 #    print_top_occur(s,5)
