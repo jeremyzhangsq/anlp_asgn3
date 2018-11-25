@@ -212,9 +212,9 @@ def freq_v_sim(sims,name):
     # frequency of the second word
     xs.append(c1)
   plt.clf() # clear previous plots (if any)
-  # plt.xscale('log') # set x axis to log scale. Must do *before* creating plot
+  plt.xscale('log') # set x axis to log scale. Must do *before* creating plot
   plt.plot(xs, ys, 'k.') # create the scatter plot
-  plt.xlabel('Second Word Freq')
+  plt.xlabel('Logged Second Word Freq')
   plt.ylabel('Similarity')
 #  print("Freq vs Similarity Spearman correlation = {:.2f}".format(spearmanr(xs,ys)[0]))
   plt.savefig(name) #display the set of plots
@@ -323,7 +323,7 @@ def print_top_occur(word, num):
 # wid_pairs = make_pairs(all_wids)
 
 # random select word_pair
-size = 1000
+size = 10
 all_wids = get_random_wids(size)
 # read in the count information
 (o_counts, co_counts, N) = read_counts("/afs/inf.ed.ac.uk/group/teaching/anlp/asgn3/counts", all_wids)
