@@ -67,31 +67,52 @@ def cos_sim(v0,v1):
   '''
   # We recommend that you store the sparse vectors as dictionaries
   # with keys giving the indices of the non-zero entries, and values
-  # giving the values at those dimensions.
-
-  #You will need to replace with the real function
-  sum0 = get_vector_len(v0)
-  sum1 = get_vector_len(v1)
+  # giving the values at those dimensions
+  
+  sum0 = get_vector_len(v0) # get |v0|
+  sum1 = get_vector_len(v1) # get |v1|
   total = 0
   for w in v0:
       if w in v1:
           total += v0[w]*v1[w]
+          
+  # if denominator is zero, we think they are not similar and set to 0
   if sum0*sum1 == 0:
       return 0
   return total/float(sum0*sum1)
 
 def get_vector_len(v):
+  '''
+  Auxilary function for cos_sim(), calculate |v| for vector v
+
+  :type v: dict
+  :param v: vector
+  :rtype: float
+  :return: length of vector |v|
+  '''
     return mt.sqrt(sum([i**2 for i in v.values()]))
 
 def jaccard_sim(v0,v1):
+  '''
+  Compute the general jaccard similarity between two sparse vectors.
+
+  :type v0: dict
+  :type v1: dict
+  :param v0: first sparse vector
+  :param v1: second sparse vector
+  :rtype: float
+  :return: jaccard between v0 and v1
+  '''
     all_id = set()
     for i in v0.keys():
         all_id.add(i)
-    for i in v0.keys():
+    for i in v1.keys():
         all_id.add(i)
     x = 0
     y = 0
     for id in all_id:
+        # sum up min(v1,v0) to x
+        # sum up max(v1,v0) to y
         if id not in v0.keys():
             x += 0
             y += v1[id]
@@ -101,6 +122,8 @@ def jaccard_sim(v0,v1):
         else:
             x+=min(v1[id],v0[id])
             y+=max(v1[id],v0[id])
+            
+    # if denominator is zero, we think they are not similar and set to 0
     if y == 0:
         return 0
     return x/y
@@ -139,18 +162,46 @@ def create_ppmi_vectors(wids, o_counts, co_counts, tot_count):
 
 
 def t_test(c_xy, c_x,c_y,N):
+  '''Compute the t-test score using cooccurrence counts.
+
+  :type c_xy: int 
+  :type c_x: int 
+  :type c_y: int 
+  :type N: int
+  :param c_xy: coocurrence count of x and y
+  :param c_x: occurrence count of x
+  :param c_y: occurrence count of y
+  :param N: total observation count
+  :rtype: float
+  :return: the t-test value
+
+  '''
     return ((N*c_xy)-c_x*c_y)/(N*np.sqrt(c_x*c_y))
 
 def create_ttest_vectors(wids, o_counts, co_counts, tot_count):
+    '''Creates context vectors for the words in wids, using t-test.
+    :type wids: list of int
+    :type o_counts: dict
+    :type co_counts: dict of dict
+    :type tot_count: int
+    :param wids: the ids of the words to make vectors for
+    :param o_counts: the counts of each word (indexed by id)
+    :param co_counts: the cooccurrence counts of each word pair (indexed by ids)
+    :param tot_count: the total number of observations
+    :rtype: dict
+    :return: the context vectors, indexed by word id
+    '''
     vectors = {}
     allwid = list(wid2word.keys())
     allwid.sort()
     for wid0 in wids:
       w_dict = {}
       for wid1 in allwid:
+        # for every co-occurence word
         if wid1 in co_counts[wid0]:
             t = t_test(co_counts[wid0][wid1],o_counts[wid0],o_counts[wid1],tot_count)
             w_dict[wid1] = t
+        # for every non-occurence word
         else:
             t = t_test(0,o_counts[wid0],o_counts[wid1],tot_count)
             w_dict[wid1] = t  
@@ -204,6 +255,14 @@ def print_sorted_pairs(similarities, o_counts, first=0, last=100):
     
     
 def freq_v_sim(sims,name):
+  '''plot the scatter figure about word frequency vs. similarity values
+
+  :type sims: dict 
+  :type name: string
+  :param sims: the word id pairs (keys) with similarity scores (values)
+  :param name: stored figure name
+  :return: none
+  '''
   xs = []
   ys = []
   for pair in sims.items():
@@ -219,22 +278,19 @@ def freq_v_sim(sims,name):
   plt.ylabel('Similarity')
   print("Freq vs Similarity Spearman correlation = {:.2f}".format(scipy.stats.spearmanr(xs,ys)[0]))
   print("Freq vs Similarity Pearson correlation = {:.2f}".format(np.corrcoef(xs,ys)[0][1]))
-  plt.savefig(name) #display the set of plots
+  plt.savefig(name) #save the set of plots
 
 def get_random_wids(size):
+  '''auxilary method for random generating word pairs
+  :type size: int
+  :param size: number of random picked wid
+  :return: wid list
+  '''
     l = set()
     while len(l) < size:
         i1, id = random.choice(list(word2wid.items()))
         l.add(id)
     return l
-
-def get_random_pairs(all_wids,o_counts, thres):
-    l = []
-    for i1 in all_wids:
-        if o_counts[i1] < thres[0] or o_counts[i1] > thres[1]:
-            continue
-        l.append(i1)
-    return make_pairs(l)
 
 def make_pairs(items):
   '''
@@ -250,6 +306,15 @@ def make_pairs(items):
   return [(x, y) for x in items for y in items if x < y]
 
 def print_vector_ratio(v1,v2,t):
+  '''print the number of zero/negative entry and total entry for vector
+  :type v1: dict 
+  :type v2: dict
+  :type t: list
+  :param v1: the context vectors, indexed by word id
+  :param v2: the context vectors, indexed by word id
+  :param t: list of wid
+  :return: none
+  '''  
     for k in v1.keys():
         if k in t:
             c1 = 0
@@ -267,19 +332,46 @@ def print_vector_ratio(v1,v2,t):
             print("{}:ttest-{}/{}".format(wid2word[k],c1,len(v2[k])))
 
 def get_similarity(all_wids, wid_pairs, o_counts,co_counts,N):
+  '''get all 4 similarity result for plotting freq vs. sim scatter
+
+  :type all_wids: list 
+  :type wid_pairs: list
+  :type o_counts: dict
+  :type co_counts: dict
+  :param N: int
+  :param all_wids: a list of all wids
+  :param wid_pairs: all possible pairs given all_wids
+  :param o_counts: the counts of each word id
+  :param co_counts: the cooccurrence counts of each word pair (indexed by ids)
+  :param N: the total number of observations
+  :return: ppmi_cos, ppmi_jaccard, t_cos, t_jaccard
+  '''
     v1 = create_ppmi_vectors(all_wids,o_counts, co_counts, N)
-    v2 = create_ttest_vectors(all_wids,o_counts, co_counts, N)                    
+    v2 = create_ttest_vectors(all_wids,o_counts, co_counts, N)     
+    
     #compute cosine similarites for all pairs we consider
     c_1 = {(wid0,wid1): cos_sim(v1[wid0],v1[wid1]) for (wid0,wid1) in wid_pairs}
     c_2 = {(wid0,wid1): cos_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
-    #print_sorted_pairs(c_sims, o_counts)
-    # compute cosine similarites for all pairs we consider
+
+    # compute jaccard similarites for all pairs we consider
     j_1 = {(wid0,wid1): jaccard_sim(v1[wid0],v1[wid1]) for (wid0,wid1) in wid_pairs}
     j_2 = {(wid0,wid1): jaccard_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
     return c_1,j_1,c_2,j_2
 
 def print_result(all_wids, wid_pairs, o_counts,co_counts,N):
-    
+  '''print word freq and all sim values
+  :type all_wids: list 
+  :type wid_pairs: list
+  :type o_counts: dict
+  :type co_counts: dict
+  :param N: int
+  :param all_wids: a list of all wids
+  :param wid_pairs: all possible pairs given all_wids
+  :param o_counts: the counts of each word id
+  :param co_counts: the cooccurrence counts of each word pair (indexed by ids)
+  :param N: the total number of observations
+  :return: ppmi_vector, ttest_vector
+  '''    
     v1 = create_ppmi_vectors(all_wids,o_counts, co_counts, N)
     v2 = create_ttest_vectors(all_wids,o_counts, co_counts, N) 
                           
@@ -299,37 +391,47 @@ def print_result(all_wids, wid_pairs, o_counts,co_counts,N):
         #l1.append(similarities[pair])
         #l2.append(co_counts[pair[0]][pair[1]])
         print("{} \t{} \t{} \t{} \t{:.2f} \t{:.2f} \t{:.2f} \t{:.2f} \\\\".format(wid2word[pair[0]],o_counts[pair[0]],wid2word[pair[1]],o_counts[pair[1]],c_1[pair],j_1[pair],c_2[pair],j_2[pair]))
-       
-    
-    #print("Sort by jaccard similarity")
-    #print_sorted_pairs(j_sims, o_counts)
+
     return v1,v2
 
 def print_top_occur(word, num):
+  '''
+  for a given word print its top-num oc-occurrence words
+
+  :type word: string
+  :type num: int
+  :param word: a given word
+  :param num: required top num
+  :return: none
+
+  '''
     sorted_white = sorted([(value, key) for (key,value) in co_counts[word2wid[word]].items()],reverse = True)
     print("{}'s top {} occurance words:".format(word,num))
     for i in range(num):
         print(wid2word[sorted_white[i][1]])
 
-#test_words = ["cat", "dog", "mouse", "computer","@justinbieber"]
-#color_words = ["white","black","blue","red"]
-#low_words = ['jameela','bullwinkl']
+        
+#==============================================manually selcted words===============================================
 #words = ['#bieberfact','@bieber','@jdbiebercrews','pop','music','dad','loove','love','physic','#rock']
 #stemmed_words = [tw_stemmer(w) for w in words]
 #all_wids = set([word2wid[x] for x in stemmed_words]) # stemming might create duplicates; remove them
 
-# you could choose to just select some pairs and add them by hand instead
-# but here we automatically create all pairs 
-# wid_pairs = make_pairs(all_wids)
 
-# random select word_pair
+#==============================================randomly selcted words===============================================
 size = 100
 all_wids = get_random_wids(size)
+
+
 # read in the count information
 (o_counts, co_counts, N) = read_counts("/afs/inf.ed.ac.uk/group/teaching/anlp/asgn3/counts", all_wids)
-random.seed(1)
+# random.seed(1)
+# create all pairs 
 wid_pairs = make_pairs(all_wids)
-#wid_pairs = get_random_pairs(all_wids,o_counts, (500,10000))
+
+#===================================print all sim value for manual words==================================
+#v1,v2 = print_result(all_wids, wid_pairs, o_counts,co_counts,N)
+
+#======================================plot scatter for random words======================================
 ppmi_c_sim, ppmi_j_sim, t_c_sim, t_j_sim = get_similarity(all_wids, wid_pairs, o_counts,co_counts,N)
 print("ppmi_cosine")
 freq_v_sim(ppmi_c_sim,"ppmi_c_sim.pdf")
@@ -339,13 +441,16 @@ print("t_cosine")
 freq_v_sim(t_c_sim,"t_c_sim.pdf")
 print("t_jaccard")
 freq_v_sim(t_j_sim,"t_j_sim.pdf")
+
 # we first print out the top 5 occurance words of given words
 #for s in stemmed_words:
 #    print_top_occur(s,5)
 
-#v1,v2 = print_result(all_wids, wid_pairs, o_counts,co_counts,N)
-
 # calculate vector details
 #t = [word2wid["#bieberfact"],word2wid["@bieber"],word2wid["@jdbiebercrews"]]
 #print_vector_ratio(v1,v2,t)
+
+
+
+
 
