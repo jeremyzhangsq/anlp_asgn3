@@ -2,6 +2,7 @@ from __future__ import division
 import math as mt
 import numpy as np
 import operator
+import scipy
 import random
 from load_map import wid2word, word2wid
 from nltk.stem import *
@@ -76,7 +77,7 @@ def cos_sim(v0,v1):
       if w in v1:
           total += v0[w]*v1[w]
   if sum0*sum1 == 0:
-      return -1
+      return 0
   return total/float(sum0*sum1)
 
 def get_vector_len(v):
@@ -207,34 +208,35 @@ def freq_v_sim(sims,name):
   ys = []
   for pair in sims.items():
     ys.append(pair[1])
-    # c0 = o_counts[pair[0][0]]
+    #if pair[1] == 1:
+    #    print(wid2word[pair[0][0]],wid2word[pair[0][1]],o_counts[pair[0][0]],o_counts[pair[0][1]])
+    c0 = o_counts[pair[0][0]]
     c1 = o_counts[pair[0][1]]
-    # frequency of the second word
-    xs.append(c1)
+    # frequency of the minword
+    xs.append(min(c1,c0))
   plt.clf() # clear previous plots (if any)
   plt.xscale('log') # set x axis to log scale. Must do *before* creating plot
   plt.plot(xs, ys, 'k.') # create the scatter plot
-  plt.xlabel('Logged Second Word Freq')
+  plt.xlabel('Log Min Word Freq for word pair')
   plt.ylabel('Similarity')
-#  print("Freq vs Similarity Spearman correlation = {:.2f}".format(spearmanr(xs,ys)[0]))
+  print("Freq vs Similarity Spearman correlation = {:.2f}".format(scipy.stats.spearmanr(xs,ys)[0]))
+  print("Freq vs Similarity Pearson correlation = {:.2f}".format(np.corrcoef(xs,ys)[0][1]))
   plt.savefig(name) #display the set of plots
 
 def get_random_wids(size):
-    l = []
+    l = set()
     while len(l) < size:
         i1, id = random.choice(list(word2wid.items()))
-        l.append(id)
+        l.add(id)
     return l
 
-def get_random_pairs(all_wids,o_counts, co_counts, size, thres):
+def get_random_pairs(all_wids,o_counts, thres):
     l = []
-    while len(l) < size:
-        i1 = random.choice(all_wids)
+    for i1 in all_wids:
         if o_counts[i1] < thres:
             continue
-        i2, ccnt = random.choice(list(co_counts[i1].items()))
-        l.append((i1,i2))
-    return l
+        l.append(i1)
+    return make_pairs(l)
 
 def make_pairs(items):
   '''
@@ -268,15 +270,15 @@ def print_vector_ratio(v1,v2,t):
 
 def get_similarity(all_wids, wid_pairs, o_counts,co_counts,N):
     v1 = create_ppmi_vectors(all_wids,o_counts, co_counts, N)
-    v2 = create_ttest_vectors(all_wids,o_counts, co_counts, N)                    
+    #v2 = create_ttest_vectors(all_wids,o_counts, co_counts, N)                    
     # compute cosine similarites for all pairs we consider
     c_1 = {(wid0,wid1): cos_sim(v1[wid0],v1[wid1]) for (wid0,wid1) in wid_pairs}
-    c_2 = {(wid0,wid1): cos_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
+   # c_2 = {(wid0,wid1): cos_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
     #print_sorted_pairs(c_sims, o_counts)
     # compute cosine similarites for all pairs we consider
     j_1 = {(wid0,wid1): jaccard_sim(v1[wid0],v1[wid1]) for (wid0,wid1) in wid_pairs}
-    j_2 = {(wid0,wid1): jaccard_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
-    return c_1,j_1,c_2,j_2
+   # j_2 = {(wid0,wid1): jaccard_sim(v2[wid0],v2[wid1]) for (wid0,wid1) in wid_pairs}
+    return c_1,j_1
 
 def print_result(all_wids, wid_pairs, o_counts,co_counts,N):
     
@@ -323,18 +325,21 @@ def print_top_occur(word, num):
 # wid_pairs = make_pairs(all_wids)
 
 # random select word_pair
-size = 10
+size = 1000
 all_wids = get_random_wids(size)
 # read in the count information
 (o_counts, co_counts, N) = read_counts("/afs/inf.ed.ac.uk/group/teaching/anlp/asgn3/counts", all_wids)
 random.seed(1)
-#wid_pairs = get_random_pairs(all_wids,o_counts, co_counts,size, thres)
-wid_pairs = make_pairs(all_wids)
-ppmi_c_sim, ppmi_j_sim, t_c_sim, t_j_sim = get_similarity(all_wids, wid_pairs, o_counts,co_counts,N)
+#wid_pairs = make_pairs(all_wids)
+wid_pairs = get_random_pairs(all_wids,o_counts, 500)
+print(len(wid_pairs))
+ppmi_c_sim, ppmi_j_sim = get_similarity(all_wids, wid_pairs, o_counts,co_counts,N)
+print("ppmi_cosine")
 freq_v_sim(ppmi_c_sim,"ppmi_c_sim.pdf")
-freq_v_sim(ppmi_j_sim,"ppmi_j_sim.pdf")
-freq_v_sim(t_c_sim,"t_c_sim.pdf")
-freq_v_sim(t_j_sim,"t_j_sim.pdf")
+print("ppmi_jaccard")
+#freq_v_sim(ppmi_j_sim,"ppmi_j_sim.pdf")
+#freq_v_sim(t_c_sim,"t_c_sim.pdf")
+#freq_v_sim(t_j_sim,"t_j_sim.pdf")
 # we first print out the top 5 occurance words of given words
 #for s in stemmed_words:
 #    print_top_occur(s,5)
